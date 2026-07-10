@@ -2,7 +2,7 @@ import { CreateDaoSlotId } from '@/modules/createDao/constants/moduleSlots';
 import { conditionFactoryAbi } from '@/modules/createDao/dialogs/prepareProcessDialog/conditionFactoryAbi';
 import { proposalActionUtils } from '@/modules/governance/utils/proposalActionUtils';
 import { sppTransactionUtils } from '@/plugins/sppPlugin/utils/sppTransactionUtils';
-import type { IDao } from '@/shared/api/daoService';
+import { PluginInterfaceType, type IDao } from '@/shared/api/daoService';
 import { networkDefinitions } from '@/shared/constants/networkDefinitions';
 import { pluginRegistryUtils } from '@/shared/utils/pluginRegistryUtils';
 import {
@@ -10,6 +10,7 @@ import {
     type IBuildApplyPluginsInstallationActionsParams,
 } from '@/shared/utils/pluginTransactionUtils';
 import { transactionUtils, type ITransactionRequest } from '@/shared/utils/transactionUtils';
+import { evmAddressUtils } from '@/shared/utils/evmAddressUtils';
 import { encodeFunctionData, parseEventLogs, type Hex, type TransactionReceipt } from 'viem';
 import {
     createProcessFormUtils,
@@ -51,9 +52,11 @@ class PrepareProcessDialogUtils {
         return { pluginsMetadata, processorMetadata };
     };
 
-    buildPrepareProcessTransaction = (params: IBuildTransactionParams): Promise<ITransactionRequest> => {
+    buildPrepareProcessTransaction = async (params: IBuildTransactionParams): Promise<ITransactionRequest> => {
         const { values, processMetadata, dao } = params;
         const { permissionSelectors } = values;
+
+        this.assertDelegationValidatorAddress(values);
 
         const { processor: processorMetadata, plugins: pluginsMetadata } = processMetadata;
         const { pluginSetupProcessor, conditionFactory } = networkDefinitions[dao.network].addresses;
@@ -90,7 +93,7 @@ class PrepareProcessDialogUtils {
             dao.network,
         );
 
-        return Promise.resolve(encodedTransaction);
+        return encodedTransaction;
     };
 
     buildPublishProcessProposalActions = (params: IBuildProcessProposalActionsParams): ITransactionRequest[] => {
@@ -222,6 +225,30 @@ class PrepareProcessDialogUtils {
         })!;
 
         return prepareFunction(prepareFunctionParams);
+    };
+
+    private assertDelegationValidatorAddress = (values: ICreateProcessFormData) => {
+        const bodies =
+            values.governanceType === GovernanceType.BASIC
+                ? [values.body]
+                : values.stages.flatMap((stage) => stage.bodies);
+
+        const delegationBodies = bodies.filter(
+            (body) => body.type === BodyType.NEW && body.plugin === PluginInterfaceType.HARMONY_DELEGATION_VOTING,
+        ) as Array<ISetupBodyFormNew>;
+
+        delegationBodies.forEach((body) => {
+            const validatorAddress = body.membership?.validatorAddress ?? '';
+
+            if (validatorAddress.trim().length === 0) {
+                throw new Error('Validator address is required for Harmony Delegation voting.');
+            }
+
+            const res = evmAddressUtils.validate(validatorAddress);
+            if (!res.ok) {
+                throw new Error('Validator address must be a valid address.');
+            }
+        });
     };
 
     private buildDeployExecuteSelectorConditionData = (params: IBuildDeployExecuteSelectorConditionDataParams) => {

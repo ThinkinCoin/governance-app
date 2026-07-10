@@ -15,7 +15,7 @@ describe('<ConnectWalletDialog /> component', () => {
     beforeEach(() => {
         useDialogContextSpy.mockReturnValue(generateDialogContext());
         useAppKitSpy.mockReturnValue({ open: jest.fn(), close: jest.fn() });
-        useAppKitStateSpy.mockReturnValue({ open: false, loading: false, initialized: true });
+        useAppKitStateSpy.mockReturnValue({ open: false, loading: false, initialized: true, connectingWallet: undefined });
         useAccountSpy.mockReturnValue({} as Wagmi.UseAccountReturnType);
     });
 

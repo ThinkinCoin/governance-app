@@ -52,6 +52,11 @@ export interface ITransactionDialogFooterProps<TCustomStepId extends string = st
      * Fallback URL if the indexing step moves to the proceed anyway state.
      */
     indexingFallbackUrl?: ITransactionDialogProps['indexingFallbackUrl'];
+
+    /**
+     * Whether the connected wallet is on a different chain than required for the transaction.
+     */
+    isChainMismatch?: boolean;
 }
 
 const stepStateSubmitLabel: Partial<Record<TransactionDialogStep, Partial<Record<TransactionStatusState, string>>>> = {
@@ -88,6 +93,7 @@ export const TransactionDialogFooter = <TCustomStepId extends string = string>(
         transactionType,
         indexingFallbackUrl,
         proposalSlug,
+        isChainMismatch,
     } = props;
 
     // For two step transactions we move from first to second step automatically on success, so in those cases
@@ -129,7 +135,16 @@ export const TransactionDialogFooter = <TCustomStepId extends string = string>(
         (stepId === TransactionDialogStep.CONFIRM || stepId === TransactionDialogStep.INDEXING) &&
         (isSuccessState || isPendingState);
 
-    const customSubmitLabel = stepId != null && state != null ? stepStateSubmitLabel[stepId]?.[state] : undefined;
+        const customSubmitLabel =
+                stepId === TransactionDialogStep.APPROVE && isChainMismatch
+                        ? state === 'pending'
+                                ? 'app.shared.transactionDialog.footer.switchNetwork.pending'
+                                : state === 'error'
+                                    ? 'app.shared.transactionDialog.footer.switchNetwork.error'
+                                    : 'app.shared.transactionDialog.footer.switchNetwork.idle'
+                        : stepId != null && state != null
+                            ? stepStateSubmitLabel[stepId]?.[state]
+                            : undefined;
     const defaultSubmitLabel = isErrorState
         ? t('app.shared.transactionDialog.footer.retry')
         : displaySuccessLink

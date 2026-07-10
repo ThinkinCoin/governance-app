@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
 
+import enTranslations from '@/assets/locales/en.json';
+import { TranslationsProvider } from '@/shared/components/translationsProvider';
+
 export interface IFormWrapperProps {
     /**
      * Children of the component.
@@ -13,5 +16,9 @@ export const FormWrapper: React.FC<IFormWrapperProps> = (props) => {
 
     const formMethods = useForm();
 
-    return <FormProvider {...formMethods}>{children}</FormProvider>;
+    return (
+        <TranslationsProvider translations={enTranslations}>
+            <FormProvider {...formMethods}>{children}</FormProvider>
+        </TranslationsProvider>
+    );
 };

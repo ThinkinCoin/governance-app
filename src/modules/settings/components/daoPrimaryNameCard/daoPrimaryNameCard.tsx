@@ -29,7 +29,7 @@ export const DaoPrimaryNameCard: React.FC<IDaoPrimaryNameCardProps> = (props) =>
     const handleSubmit = () => {
         if (!primaryName || !primaryName.endsWith('.country')) {
             setAlert({
-                message: t('app.daoSettings.primaryName.invalidFormat'),
+                message: t('app.settings.daoSettings.primaryName.invalidFormat'),
                 variant: 'critical',
             });
             return;
@@ -40,14 +40,14 @@ export const DaoPrimaryNameCard: React.FC<IDaoPrimaryNameCardProps> = (props) =>
             {
                 onSuccess: () => {
                     setAlert({
-                        message: t('app.daoSettings.primaryName.success'),
+                        message: t('app.settings.daoSettings.primaryName.success'),
                         variant: 'success',
                     });
                     onSuccess?.();
                 },
                 onError: () => {
                     setAlert({
-                        message: t('app.daoSettings.primaryName.error'),
+                        message: t('app.settings.daoSettings.primaryName.error'),
                         variant: 'critical',
                     });
                 },
@@ -62,14 +62,14 @@ export const DaoPrimaryNameCard: React.FC<IDaoPrimaryNameCardProps> = (props) =>
                 onSuccess: () => {
                     setPrimaryNameValue('');
                     setAlert({
-                        message: t('app.daoSettings.primaryName.cleared'),
+                        message: t('app.settings.daoSettings.primaryName.cleared'),
                         variant: 'success',
                     });
                     onSuccess?.();
                 },
                 onError: () => {
                     setAlert({
-                        message: t('app.daoSettings.primaryName.clearError'),
+                        message: t('app.settings.daoSettings.primaryName.clearError'),
                         variant: 'critical',
                     });
                 },
@@ -81,9 +81,9 @@ export const DaoPrimaryNameCard: React.FC<IDaoPrimaryNameCardProps> = (props) =>
         <div className="flex w-full flex-col gap-6 rounded-xl border border-neutral-200 bg-neutral-0 p-6 shadow-neutral-md">
             <div className="flex flex-col gap-2">
                 <h2 className="text-lg font-semibold text-neutral-800">
-                    {t('app.daoSettings.primaryName.title')}
+                    {t('app.settings.daoSettings.primaryName.title')}
                 </h2>
-                <p className="text-sm text-neutral-500">{t('app.daoSettings.primaryName.description')}</p>
+                <p className="text-sm text-neutral-500">{t('app.settings.daoSettings.primaryName.description')}</p>
             </div>
 
             {alert && (
@@ -91,11 +91,11 @@ export const DaoPrimaryNameCard: React.FC<IDaoPrimaryNameCardProps> = (props) =>
             )}
 
             <InputText
-                label={t('app.daoSettings.primaryName.label')}
-                placeholder={t('app.daoSettings.primaryName.placeholder')}
+                label={t('app.settings.daoSettings.primaryName.label')}
+                placeholder={t('app.settings.daoSettings.primaryName.placeholder')}
                 value={primaryName}
                 onChange={(e) => setPrimaryNameValue(e.target.value)}
-                helpText={t('app.daoSettings.primaryName.helpText')}
+                helpText={t('app.settings.daoSettings.primaryName.helpText')}
             />
 
             <div className="flex gap-3">
@@ -106,7 +106,7 @@ export const DaoPrimaryNameCard: React.FC<IDaoPrimaryNameCardProps> = (props) =>
                     isLoading={isPending}
                     disabled={!primaryName || primaryName === dao.primaryName}
                 >
-                    {t('app.daoSettings.primaryName.submit')}
+                    {t('app.settings.daoSettings.primaryName.submit')}
                 </Button>
                 {dao.primaryName && (
                     <Button
@@ -115,14 +115,14 @@ export const DaoPrimaryNameCard: React.FC<IDaoPrimaryNameCardProps> = (props) =>
                         onClick={handleClear}
                         isLoading={isPending}
                     >
-                        {t('app.daoSettings.primaryName.clear')}
+                        {t('app.settings.daoSettings.primaryName.clear')}
                     </Button>
                 )}
             </div>
 
             {isError && error && (
                 <p className="text-sm text-critical-800">
-                    {t('app.daoSettings.primaryName.validationError')}: {error.message}
+                    {t('app.settings.daoSettings.primaryName.validationError')}: {error.message}
                 </p>
             )}
         </div>

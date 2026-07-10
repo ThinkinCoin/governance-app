@@ -207,7 +207,7 @@ export const DaoSettingsPageClient: React.FC<IDaoSettingsPageClientProps> = (pro
                     {isSubDaoEnabled ? <DaoHierarchy dao={dao} currentDaoId={daoId} /> : <DaoSettingsInfo dao={dao} />}
                 </Page.MainSection>
                 {isRootModeEnabled && dao && (
-                    <Page.MainSection title={t('app.daoSettings.primaryName.title')} inset={false}>
+                    <Page.MainSection title={t('app.settings.daoSettings.primaryName.title')} inset={false}>
                         <DaoPrimaryNameCard
                             dao={dao}
                             onSuccess={() => {

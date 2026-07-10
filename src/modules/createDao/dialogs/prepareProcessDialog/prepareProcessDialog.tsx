@@ -12,12 +12,13 @@ import {
 } from '@/shared/components/transactionDialog';
 import { useTranslations } from '@/shared/components/translationsProvider';
 import { useDaoPlugins } from '@/shared/hooks/useDaoPlugins';
+import { useDaoChain } from '@/shared/hooks/useDaoChain';
 import { useStepper } from '@/shared/hooks/useStepper';
 import { pluginTransactionUtils } from '@/shared/utils/pluginTransactionUtils';
 import { invariant } from '@aragon/gov-ui-kit';
 import { useCallback, useMemo, useState } from 'react';
 import type { TransactionReceipt } from 'viem';
-import { useAccount } from 'wagmi';
+import { useAccount, usePublicClient } from 'wagmi';
 import type { ICreateProcessFormData } from '../../components/createProcessForm';
 import { prepareProcessDialogUtils } from './prepareProcessDialogUtils';
 import type {
@@ -25,6 +26,7 @@ import type {
     IBuildTransactionParams,
     IPrepareProcessMetadata,
 } from './prepareProcessDialogUtils.api';
+import { networkDefinitions } from '@/shared/constants/networkDefinitions';
 
 export enum PrepareProcessStep {
     PIN_METADATA = 'PIN_METADATA',
@@ -53,7 +55,7 @@ export const PrepareProcessDialog: React.FC<IPrepareProcessDialogProps> = (props
     invariant(location.params != null, 'PrepareProcessDialog: required parameters must be set.');
     const { daoId, values, pluginAddress } = location.params;
 
-    const { address } = useAccount();
+    const { address, chainId } = useAccount();
     invariant(address != null, 'PrepareProcessDialog: user must be connected.');
 
     const { t } = useTranslations();
@@ -66,6 +68,11 @@ export const PrepareProcessDialog: React.FC<IPrepareProcessDialogProps> = (props
     const [plugin] = useDaoPlugins({ daoId, pluginAddress }) ?? [];
     invariant(!!plugin, `PrepareProcessDialog: plugin with address "${pluginAddress}" not found.`);
 
+    const { chainId: requiredChainId } = useDaoChain({ network: dao?.network });
+    const publicClient = usePublicClient({ chainId: requiredChainId });
+
+    const [gasEstimate, setGasEstimate] = useState<bigint | undefined>();
+
     const isAdmin = plugin.meta.interfaceType === PluginInterfaceType.ADMIN;
 
     const stepper = useStepper<ITransactionDialogStepMeta, PrepareProcessStep | TransactionDialogStep>({
@@ -77,8 +84,31 @@ export const PrepareProcessDialog: React.FC<IPrepareProcessDialogProps> = (props
         invariant(processMetadata != null, 'PrepareProcessDialog: metadata not pinned');
         invariant(dao != null, 'PrepareProcessDialog: DAO cannot be fetched');
 
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            throw new Error('You appear to be offline. Please reconnect and try again.');
+        }
+
+        if (chainId != null && requiredChainId != null && chainId !== requiredChainId) {
+            const requiredNetworkName = networkDefinitions[dao.network]?.name ?? 'the correct network';
+            throw new Error(`Please switch your wallet to ${requiredNetworkName} before preparing the installation.`);
+        }
+
         const params: IBuildTransactionParams = { values, processMetadata, dao };
         const transaction = await prepareProcessDialogUtils.buildPrepareProcessTransaction(params);
+
+        if (publicClient != null && address != null) {
+            try {
+                const estimatedGas = await publicClient.estimateGas({
+                    account: address,
+                    to: transaction.to,
+                    data: transaction.data,
+                    value: transaction.value,
+                });
+                setGasEstimate(estimatedGas);
+            } catch {
+                setGasEstimate(undefined);
+            }
+        }
 
         return transaction;
     };
@@ -134,6 +164,15 @@ export const PrepareProcessDialog: React.FC<IPrepareProcessDialogProps> = (props
     };
 
     const pinMetadataNamespace = `app.createDao.prepareProcessDialog.step.${PrepareProcessStep.PIN_METADATA}`;
+    const transactionInfo = useMemo(
+        () => ({
+            title: t('app.createDao.prepareProcessDialog.transactionInfoTitle'),
+            current: 1,
+            total: 2,
+            details: gasEstimate ? `Estimated gas: ${gasEstimate.toString()}` : undefined,
+        }),
+        [t, gasEstimate],
+    );
     const customSteps: Array<ITransactionDialogStep<PrepareProcessStep>> = useMemo(
         () => [
             {
@@ -157,11 +196,7 @@ export const PrepareProcessDialog: React.FC<IPrepareProcessDialogProps> = (props
             description={t('app.createDao.prepareProcessDialog.description')}
             submitLabel={t('app.createDao.prepareProcessDialog.button.submit')}
             onSuccess={handlePrepareInstallationSuccess}
-            transactionInfo={{
-                title: t('app.createDao.prepareProcessDialog.transactionInfoTitle'),
-                current: 1,
-                total: 2,
-            }}
+            transactionInfo={transactionInfo}
             stepper={stepper}
             customSteps={customSteps}
             prepareTransaction={handlePrepareTransaction}

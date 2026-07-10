@@ -5,7 +5,7 @@ import { useDaoChain } from '@/shared/hooks/useDaoChain';
 import { ChainEntityType, Dialog, IconType } from '@aragon/gov-ui-kit';
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAccount, useSendTransaction, useSwitchChain, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, usePublicClient, useSendTransaction, useSwitchChain, useWaitForTransactionReceipt } from 'wagmi';
 import {
     TransactionStatus,
     type ITransactionStatusStepMetaAddon,
@@ -51,6 +51,14 @@ export const TransactionDialog = <TCustomStepId extends string>(props: ITransact
     const { chainId, address } = useAccount();
     const { chainId: requiredChainId, buildEntityUrl } = useDaoChain({ network });
 
+    const publicClient = usePublicClient({ chainId: requiredChainId });
+
+    const ensureOnline = useCallback(() => {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            throw new Error('You appear to be offline. Please reconnect and try again.');
+        }
+    }, []);
+
     const handleTransactionError = useCallback(
         (stepId?: string) => (error: unknown, context?: Record<string, unknown>) =>
             transactionDialogUtils.monitorTransactionError(error, { stepId, from: address, ...context }),
@@ -64,7 +72,31 @@ export const TransactionDialog = <TCustomStepId extends string>(props: ITransact
         status: prepareTransactionStatus,
         data: transaction,
     } = useMutation({
-        mutationFn: prepareTransaction,
+        mutationFn: async () => {
+            ensureOnline();
+            const tx = await prepareTransaction();
+
+            if (tx.gas != null || publicClient == null || address == null) {
+                return tx;
+            }
+
+            try {
+                const estimate = await publicClient.estimateGas({
+                    account: address,
+                    to: tx.to,
+                    data: tx.data,
+                    value: tx.value,
+                });
+
+                // Apply a small buffer to reduce false OOG on providers with slightly optimistic estimation.
+                const gasWithBuffer = (estimate * BigInt(12)) / BigInt(10);
+                return { ...tx, gas: gasWithBuffer };
+            } catch (error: unknown) {
+                // Gas estimation is best-effort; if it fails we rely on wallet/provider defaults.
+                handleTransactionError(TransactionDialogStep.PREPARE)(error, { stage: 'estimateGas' });
+                return tx;
+            }
+        },
         onMutate: () => setPrepareErrorMessage(undefined),
         onSuccess: nextStep,
         onError: (error) => {
@@ -91,6 +123,8 @@ export const TransactionDialog = <TCustomStepId extends string>(props: ITransact
 
     const isIndexing = activeStep === TransactionDialogStep.INDEXING;
 
+    const isChainMismatch = requiredChainId != null && chainId != null && requiredChainId !== chainId;
+
     // Using the `!` operator here as this hook is only enabled when the transactionHash and transactionType are defined
     const indexingUrlParams = { network, transactionHash: transactionHash! };
     const indexingParams = { urlParams: indexingUrlParams, queryParams: { type: transactionType! } };
@@ -99,8 +133,15 @@ export const TransactionDialog = <TCustomStepId extends string>(props: ITransact
         refetchInterval: ({ state }) => (!state.data?.isProcessed ? indexingStepInterval : false),
     });
 
-    const handleSendTransaction = useCallback(() => {
-        const errorHandler = handleTransactionError(TransactionDialogStep.APPROVE);
+    const handleSendTransaction = useCallback((params: { onError: (error: unknown) => void }) => {
+        const errorHandler = params.onError;
+
+        try {
+            ensureOnline();
+        } catch (error: unknown) {
+            errorHandler(error);
+            return;
+        }
 
         if (transaction == null) {
             errorHandler(new Error('TransactionDialog: transaction must be defined.'));
@@ -114,22 +155,39 @@ export const TransactionDialog = <TCustomStepId extends string>(props: ITransact
 
             sendTransaction(transactionWithGasOverride, { onError: errorHandler });
         }
-    }, [transaction, sendTransaction, handleTransactionError]);
+    }, [ensureOnline, transaction, sendTransaction, network, transactionType]);
 
     const handleSwitchNetwork = useCallback(
-        () => switchChain({ chainId: requiredChainId! }, { onSuccess: handleSendTransaction }),
-        [switchChain, requiredChainId, handleSendTransaction],
+        (params: { onError: (error: unknown) => void }) => {
+            try {
+                ensureOnline();
+            } catch (error: unknown) {
+                params.onError(error);
+                return;
+            }
+
+            switchChain(
+                { chainId: requiredChainId! },
+                {
+                    // Switching network should not auto-send the transaction; once chainId updates,
+                    // the primary action will become the wallet signature step.
+                    onError: params.onError,
+                },
+            );
+        },
+        [ensureOnline, switchChain, requiredChainId],
     );
 
-    const handleRetryTransaction = useCallback(() => {
+    const handleRetryTransaction = useCallback((params: { onError: (error: unknown) => void }) => {
         updateActiveStep(TransactionDialogStep.APPROVE);
-        handleSendTransaction();
+        handleSendTransaction(params);
     }, [updateActiveStep, handleSendTransaction]);
 
     const approveStepAction = requiredChainId === chainId ? handleSendTransaction : handleSwitchNetwork;
-    const transactionStepActions: Record<TransactionDialogStep, () => void> = useMemo(
+    const transactionStepActions: Record<TransactionDialogStep, (params: { onError: (error: unknown) => void }) => void> =
+        useMemo(
         () => ({
-            [TransactionDialogStep.PREPARE]: prepareTransactionMutate,
+            [TransactionDialogStep.PREPARE]: () => prepareTransactionMutate(),
             [TransactionDialogStep.APPROVE]: approveStepAction,
             [TransactionDialogStep.CONFIRM]: handleRetryTransaction,
             [TransactionDialogStep.INDEXING]: () => {
@@ -258,6 +316,7 @@ export const TransactionDialog = <TCustomStepId extends string>(props: ITransact
                 onError={handleTransactionError(activeStepInfo?.id)}
                 onCancelClick={onCancelClick}
                 transactionType={transactionType}
+                isChainMismatch={isChainMismatch}
                 proposalSlug={transactionStatus?.slug}
                 indexingFallbackUrl={indexingFallbackUrl}
             />

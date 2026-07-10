@@ -8,6 +8,7 @@ import {
     useConnectApp,
     useDisconnectApp,
     walletConnectService,
+    type IAppMetadata,
     type ISessionRequest,
 } from '../../api/walletConnectService';
 import {
@@ -101,7 +102,7 @@ export const WalletConnectActionDialog: React.FC<IWalletConnectActionDialog> = (
 
     return (
         <WalletConnectActionDialogListener
-            appMetadata={appSession.peer.metadata}
+            appMetadata={appSession.peer.metadata as IAppMetadata}
             actions={actions}
             onAddActionsClick={handleAddActions}
             onClose={handleCloseDialog}

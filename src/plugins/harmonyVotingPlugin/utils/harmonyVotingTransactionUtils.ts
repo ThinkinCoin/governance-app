@@ -2,7 +2,8 @@ import type { IBuildPreparePluginInstallDataParams } from '@/modules/createDao/t
 import { PluginInterfaceType } from '@/shared/api/daoService';
 import { pluginTransactionUtils } from '@/shared/utils/pluginTransactionUtils';
 import { addressUtils, type ICompositeAddress } from '@aragon/gov-ui-kit';
-import { encodeAbiParameters, encodeFunctionData, keccak256, type Hex } from 'viem';
+import { encodeAbiParameters, encodeFunctionData, stringToHex, type Hex } from 'viem';
+import { evmAddressUtils } from '@/shared/utils/evmAddressUtils';
 import type { IPluginInfo } from '@/shared/types';
 import type { IHarmonyVotingSetupGovernanceForm } from '../components/harmonyVotingSetupGovernance';
 import type { IHarmonyVotingSetupMembershipForm } from '../components/harmonyVotingSetupMembership';
@@ -29,7 +30,7 @@ const harmonyVotingAbi = [
         name: 'createProposal',
         stateMutability: 'nonpayable',
         inputs: [
-            { name: '_metadata', type: 'bytes32' },
+            { name: '_metadata', type: 'bytes' },
             { name: '_startDate', type: 'uint64' },
             { name: '_endDate', type: 'uint64' },
             { name: '_snapshotBlock', type: 'uint64' },
@@ -56,29 +57,20 @@ export const buildPrepareHarmonyVotingInstallData = (
 
     const repositoryAddress = plugin.repositoryAddresses[dao.network];
 
-    // When the plugin is installed as a processor (basic governance) the
-    // `metadata` parameter contains the processor metadata (including the
-    // `processKey` provided by the UI). In that case we must forward the
-    // metadata hex directly to the plugin setup so the on-chain setup uses
-    // the supplied `processKey` instead of falling back to a plugin-default
-    // value (e.g. HARMONYDELEGATIONVOTING).
+    // Harmony Voting plugins have strict install params expectations:
+    // - HIP voting: no installation params are supported (must be empty bytes)
+    // - Delegation voting: expects `abi.encode(address validatorAddress, bytes32 processKey)`
     //
-    // For advanced governance (stageVotingPeriod set) the plugin is a
-    // sub-plugin and the setup expects its specific settings (validator
-    // address for delegation voting), so we keep the existing behaviour.
+    // Passing metadata here would revert (e.g. HIP: `INSTALL_PARAMS_NOT_SUPPORTED`).
+    void metadata;
+    void stageVotingPeriod;
+
     let pluginSettingsData: Hex = '0x' as Hex;
 
     const isDelegation = plugin.id === PluginInterfaceType.HARMONY_DELEGATION_VOTING;
 
-    if (stageVotingPeriod == null) {
-        // Installed as processor (basic): forward metadata (CID hex) so the
-        // on-chain setup can read `processKey` and other processor fields.
-        if (metadata != null && metadata.length > 0) {
-            pluginSettingsData = metadata as Hex;
-        }
-    } else if (isDelegation) {
-        // Advanced governance / sub-plugin: pass validator address as before.
-        pluginSettingsData = buildDelegationInstallData(body.membership?.validatorAddress);
+    if (isDelegation) {
+        pluginSettingsData = buildDelegationInstallData(body.membership?.validatorAddress, body.membership?.processKey);
     }
 
     return pluginTransactionUtils.buildPrepareInstallationData(
@@ -98,8 +90,14 @@ export const buildCreateHarmonyVotingProposalData = (
         throw new Error('Harmony voting proposals do not support onchain actions. Remove all actions and try again.');
     }
 
-    const startDate = createProposalUtils.parseStartDate(proposal);
+    let startDate = createProposalUtils.parseStartDate(proposal);
     let endDate = createProposalUtils.parseEndDate(proposal);
+
+    // Unlike other governance plugins, HarmonyVoting does not support using `0` to let the
+    // contract fill startDate at execution time.
+    if (startDate === 0) {
+        startDate = Math.floor(Date.now() / 1000) + 60;
+    }
 
     if (endDate === 0) {
         endDate = createProposalUtils.createDefaultEndDate();
@@ -114,12 +112,10 @@ export const buildCreateHarmonyVotingProposalData = (
         throw new Error('Snapshot block is required for Harmony voting proposals.');
     }
 
-    const metadataHash = keccak256(metadata);
-
     return encodeFunctionData({
         abi: harmonyVotingAbi,
         functionName: 'createProposal',
-        args: [metadataHash, BigInt(startDate), BigInt(endDate), BigInt(snapshotBlock)],
+        args: [metadata, BigInt(startDate), BigInt(endDate), BigInt(snapshotBlock)],
     });
 };
 
@@ -133,17 +129,44 @@ export const buildHarmonyVotingVoteData = (params: IBuildVoteDataParams): Hex =>
     });
 };
 
-export const buildDelegationInstallData = (validatorAddress?: string): Hex => {
+export const buildDelegationInstallData = (validatorAddress?: string, processKey?: string | Hex): Hex => {
     if (validatorAddress == null || validatorAddress.trim().length === 0) {
         throw new Error('Validator address is required for Harmony Delegation voting.');
     }
+    const trimmed = validatorAddress.trim();
+    const res = evmAddressUtils.validate(trimmed);
 
-    // Normalize address to lowercase to ensure consistent on-chain encoding
-    const normalized = validatorAddress.trim().toLowerCase();
-
-    if (!addressUtils.isAddress(normalized)) {
+    if (!res.ok) {
         throw new Error('Validator address must be a valid address.');
     }
 
-    return encodeAbiParameters([{ name: 'validatorAddress', type: 'address' }], [normalized as Hex]);
+    const normalizedProcessKey = (() => {
+        if (processKey == null) {
+            return stringToHex('DELEGATION', { size: 32 }) as Hex;
+        }
+
+        // Accept raw bytes32 hex.
+        if (typeof processKey === 'string' && processKey.startsWith('0x')) {
+            return processKey as Hex;
+        }
+
+        const trimmedKey = String(processKey).trim();
+        if (trimmedKey.length === 0) {
+            return stringToHex('DELEGATION', { size: 32 }) as Hex;
+        }
+
+        try {
+            return stringToHex(trimmedKey.toUpperCase(), { size: 32 }) as Hex;
+        } catch {
+            throw new Error('Process key must be a valid short string (fits into bytes32).');
+        }
+    })();
+
+    return encodeAbiParameters(
+        [
+            { name: 'validatorAddress', type: 'address' },
+            { name: 'processKey', type: 'bytes32' },
+        ],
+        [res.address as Hex, normalizedProcessKey],
+    );
 };

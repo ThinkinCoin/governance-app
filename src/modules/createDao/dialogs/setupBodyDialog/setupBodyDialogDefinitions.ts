@@ -113,4 +113,9 @@ export interface ISetupBodyFormMembership<TMember extends ICompositeAddress = IC
      * Members of the plugin.
      */
     members: TMember[];
+
+    /**
+     * Optional validator address for plugins that require it (e.g. Harmony Delegation voting).
+     */
+    validatorAddress?: string;
 }

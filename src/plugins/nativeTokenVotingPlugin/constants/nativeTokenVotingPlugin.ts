@@ -9,9 +9,9 @@ export const nativeTokenVotingPlugin: IPluginInfo = {
     name: 'NativeTokenVoting',
     installVersion: {
         release: 1,
-        build: 1,
+        build: 2,
         releaseNotes: 'https://github.com/Axodus/AragonOSX',
-        description: 'Initial NativeTokenVoting deployment on Harmony.',
+        description: 'Merkle snapshot voting power (wallet + staked) on Harmony.',
     },
     repositoryAddresses: {
         [Network.ARBITRUM_MAINNET]: ZERO_ADDRESS,

@@ -81,7 +81,14 @@ export const SetupBodyDialogSelect: React.FC<ISetupBodyDialogSelectProps> = (pro
                     description={t(plugin.setup!.descriptionKey)}
                     value={plugin.id}
                     disabled={true}
-                    tag={{ variant: 'info', label: t('app.createDao.setupBodyDialog.select.disabled.label') }}
+                    tag={{
+                        variant: plugin.requiresAllowlist ? 'warning' : 'info',
+                        label: t(
+                            plugin.requiresAllowlist
+                                ? 'app.createDao.setupBodyDialog.select.requiresAllowlist.label'
+                                : 'app.createDao.setupBodyDialog.select.disabled.label'
+                        ),
+                    }}
                 />
             ))}
         </RadioGroup>

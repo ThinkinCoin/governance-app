@@ -822,7 +822,6 @@
           "transactionInfoTitle": "Propose process"
         }
       },
-
       "setupBodyDialog": {
         "a11y": {
           "description": "Create a new voting body for your DAO"
@@ -862,6 +861,10 @@
           "plugin": {
             "helpText": "This determines the governance the body uses to make decisions.",
             "label": "Governance type"
+          },
+          "requiresAllowlist": {
+            "label": "By Request",
+            "description": "This plugin requires prior authorization. Contact the Management DAO to request access."
           }
         },
         "submit": "Save",
@@ -1034,8 +1037,7 @@
         }
       },
       "exploreDaosPage": {
-        
-       "doItYourself": {
+        "doItYourself": {
           "actionLabel": "Developer portal",
           "subtitle": "Build your own custom Harmony OSx DAO or your own web application using our Governance UI Kit and App Template.",
           "title": "Do it yourself"
@@ -1054,7 +1056,6 @@
           "subtitle": "Easily deploy a new DAO on Harmony OSx in minutes with our simple, no-code deployment wizard.",
           "title": "No-code setup"
         },
-
         "section": {
           "cta": "Getting started",
           "daos": "Explore",
@@ -1632,6 +1633,9 @@
             "title": "Manage admins"
           }
         },
+        "adminInstallHarmonyVoting": {
+          "label": "Install Harmony voting"
+        },
         "adminMemberInfo": {
           "admins": "Admins",
           "membersCount": "{{count}} addresses"
@@ -2058,7 +2062,15 @@
           "validatorAddress": {
             "label": "Validator address",
             "placeholder": "0x…",
-            "helpText": "Provide the validator address whose delegators can vote."
+            "helpText": "Provide the validator address whose delegators can vote.",
+            "error": {
+              "required": "Validator address is required.",
+              "prefix": "Address must start with 0x.",
+              "length": "Address must be 42 characters long.",
+              "format": "Address must be a valid hex string.",
+              "checksum": "Address checksum is invalid.",
+              "ensNotResolved": "Could not resolve ENS name to an address."
+            }
           }
         }
       },
@@ -2306,7 +2318,7 @@
         },
         "setupGovernance": {
           "minDuration": {
-            "alertInfo": "Minimum duration: {{value}}",
+            "alertInfo": "Minimum duration: {{days}} days, {{hours}} hours, and {{minutes}} minutes",
             "helpText": "Minimum time a proposal stays open for voting.",
             "label": "Proposal duration"
           },
@@ -2891,6 +2903,43 @@
         "title": "Publish contract upgrades",
         "transactionInfoTitle": "Prepare installation"
       },
+      "installHarmonyVotingDialog": {
+        "title": "Install Harmony voting",
+        "description": "Choose which Harmony voting process to install and select the governance process that will propose the installation.",
+        "error": {
+          "unsupportedNetwork": "This action is only available for Harmony DAOs.",
+          "repoNotConfigured": "Harmony voting is not configured for this network."
+        },
+        "field": {
+          "processToInstall": "Process to install",
+          "proposalProcess": "Proposal process"
+        },
+        "value": {
+          "proposalProcessSelected": "Selected: {{name}} ({{slug}})",
+          "proposalProcessNotSelected": "No proposal process selected"
+        },
+        "action": {
+          "continue": "Continue",
+          "selectProcess": "Select process",
+          "changeProcess": "Change process"
+        }
+      },
+      "prepareHarmonyVotingInstallationDialog": {
+        "button": {
+          "submit": "Prepare installation"
+        },
+        "description": "To install Harmony voting, confirm the two onchain transactions in your wallet.",
+        "publishInstallProposal": {
+          "button": {
+            "submit": "Propose installation"
+          },
+          "description": "To install Harmony voting, confirm the two onchain transactions in your wallet.",
+          "title": "Publish process installation",
+          "transactionInfoTitle": "Propose installation"
+        },
+        "title": "Install Harmony voting",
+        "transactionInfoTitle": "Prepare installation"
+      },
       "preparePluginUninstallationDialog": {
         "button": {
           "submit": "Prepare uninstall"
@@ -3051,6 +3100,11 @@
             "error": "Resend to wallet",
             "idle": "Sign transaction",
             "pending": "Awaiting signature"
+          },
+          "switchNetwork": {
+            "error": "Retry network switch",
+            "idle": "Switch network",
+            "pending": "Switching network"
           },
           "cancel": "Cancel",
           "proceedAnyway": "Continue in background",

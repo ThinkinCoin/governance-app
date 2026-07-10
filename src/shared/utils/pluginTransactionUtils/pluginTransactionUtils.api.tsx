@@ -114,6 +114,13 @@ export interface IBuildApplyPluginsInstallationActionsParams {
      * Address of the execute condition contract if specific permissions are set.
      */
     executeConditionAddress?: Hex;
+
+    /**
+     * Address of the PluginSetupProcessor contract that should be targeted.
+     *
+     * Important for legacy networks/DAOs where the PSP can vary by deployment.
+     */
+    pluginSetupProcessorAddress?: Hex;
 }
 
 export interface IBuildApplyPluginsUpdateActionsParams {

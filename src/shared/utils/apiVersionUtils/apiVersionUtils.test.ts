@@ -7,7 +7,7 @@ describe('apiVersionUtils', () => {
 
         afterEach(() => {
             process.env.NEXT_PUBLIC_API_VERSION = originalEnv;
-            process.env.NODE_ENV = originalNodeEnv;
+            (process.env as any).NODE_ENV = originalNodeEnv;
         });
 
         it('should return v2 by default when env var is not set', () => {
@@ -26,7 +26,7 @@ describe('apiVersionUtils', () => {
         });
 
         it('should return v2 in production even when env var is set to v3', () => {
-            process.env.NODE_ENV = 'production';
+            (process.env as any).NODE_ENV = 'production';
             process.env.NEXT_PUBLIC_API_VERSION = 'v3';
             expect(apiVersionUtils.getApiVersion()).toBe('v2');
         });
@@ -43,7 +43,7 @@ describe('apiVersionUtils', () => {
 
         afterEach(() => {
             process.env.NEXT_PUBLIC_API_VERSION = originalEnv;
-            process.env.NODE_ENV = originalNodeEnv;
+            (process.env as any).NODE_ENV = originalNodeEnv;
         });
 
         it('should prepend version to path without version', () => {
@@ -57,7 +57,7 @@ describe('apiVersionUtils', () => {
         });
 
         it('should default to v2 in production when building versioned URL', () => {
-            process.env.NODE_ENV = 'production';
+            (process.env as any).NODE_ENV = 'production';
             process.env.NEXT_PUBLIC_API_VERSION = 'v3';
             expect(apiVersionUtils.buildVersionedUrl('/daos/:id')).toBe('/v2/daos/:id');
         });

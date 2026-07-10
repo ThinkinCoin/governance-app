@@ -1,5 +1,7 @@
 import type { IDialogComponentDefinitions } from '@/shared/components/dialogProvider';
 import { GovernanceProcessRequiredDialog } from '../dialogs/governanceProcessRequiredDialog';
+import { InstallHarmonyVotingDialog } from '../dialogs/installHarmonyVotingDialog';
+import { PrepareHarmonyVotingInstallationDialog } from '../dialogs/prepareHarmonyVotingInstallationDialog';
 import { PrepareDaoContractsUpdateDialog } from '../dialogs/prepareDaoContractsUpdateDialog';
 import { PreparePluginUninstallationDialog } from '../dialogs/preparePluginUninstallationDialog';
 import { UninstallPluginAlertDialog } from '../dialogs/uninstallPluginAlertDialog';
@@ -21,4 +23,6 @@ export const settingsDialogDefinitions: Record<SettingsDialogId, IDialogComponen
         variant: 'critical',
     },
     [SettingsDialogId.PREPARE_PLUGIN_UNINSTALLATION]: { Component: PreparePluginUninstallationDialog },
+    [SettingsDialogId.INSTALL_HARMONY_VOTING]: { Component: InstallHarmonyVotingDialog, size: 'lg' },
+    [SettingsDialogId.PREPARE_HARMONY_VOTING_INSTALLATION]: { Component: PrepareHarmonyVotingInstallationDialog },
 };

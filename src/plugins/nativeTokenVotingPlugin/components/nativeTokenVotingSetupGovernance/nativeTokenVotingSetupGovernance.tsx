@@ -98,7 +98,7 @@ export const NativeTokenVotingSetupGovernance: React.FC<INativeTokenVotingSetupG
                             defaultValue={voteDurationDefault}
                             useSecondsFormat={true}
                             validateMinDuration={true}
-                            infoText={t('app.plugins.nativeTokenVoting.setupGovernance.minDuration.alertInfo')}
+                            infoText={t('app.plugins.nativeTokenVoting.setupGovernance.minDuration.alertInfo', voteDurationMin)}
                         />
                     </Card>
                 </InputContainer>

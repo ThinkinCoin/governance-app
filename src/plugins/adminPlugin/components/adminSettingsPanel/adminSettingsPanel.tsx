@@ -23,7 +23,7 @@ export const AdminSettingsPanel: React.FC<IAdminSettingsPanelProps> = (props) =>
         <Page.MainSection title={t('app.plugins.admin.adminSettingsPanel.title')} icon={IconType.WARNING}>
             <Card className="flex flex-col gap-4 p-6">
                 <AdminGovernanceInfo />
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                     <AdminManageMembers daoId={daoId} />
                     <AdminUninstallPlugin daoId={daoId} />
                 </div>

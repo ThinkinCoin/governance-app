@@ -37,7 +37,7 @@ export const AdvancedDateInputFixed: React.FC<IAdvancedDateInputFixedProps> = (p
         const sanitizedValue = sanitizePlainText(event.target.value);
         const normalizedValue = type === 'time' ? timeUtils.normalizeTimeValue(sanitizedValue) : sanitizedValue;
         const newValue = { ...fixedDateField.value, [type]: normalizedValue };
-        setValue(field, newValue, { shouldValidate: false });
+        setValue(field, newValue, { shouldValidate: validateMinDuration === true });
     };
 
     const handleInputBlur = () => trigger(field);

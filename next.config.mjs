@@ -91,6 +91,8 @@ const nextConfig = {
         ];
     },
     async headers() {
+        const isProduction = process.env.NODE_ENV === 'production';
+
         const headers = [
             // Security headers for all paths
             {
@@ -98,8 +100,12 @@ const nextConfig = {
                 headers: [
                     // Do not allow usage of application inside iframes
                     { key: 'X-Frame-Options', value: 'DENY' },
-                    // Enforce HTTPS access
-                    { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+                    // Enforce HTTPS access (production only).
+                    // Setting HSTS in development can cause browsers to force HTTPS on localhost,
+                    // which breaks Next dev server requests (e.g., RSC payload fetches).
+                    ...(isProduction
+                        ? [{ key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' }]
+                        : []),
                     // Explicitly disable all web functionalities
                     { key: 'Permissions-Policy', value: webFunctionalities.join(', ') },
                     // Prevents the browser from guessing the content type when related header is not set

@@ -21,7 +21,7 @@ These notes make AI agents productive in this repo fast. Focus on conventions, c
 2. **Sync with GitHub Project**: Using GitHub CLI (`gh` - already authenticated as mzfshark):
    ```bash
    # Create issue from PLAN.md
-   gh issue create --title "[Plan] <descriptive-title>" --body-file PLAN.md --project "https://github.com/users/mzfshark/projects/5"
+   gh issue create --title "[Plan] <descriptive-title>" --body-file PLAN.md --project "https://github.com/users/mzfshark/projects/15"
    ```
 
 3. **Update Plan Progress**: As tasks complete, update checkboxes in `PLAN.md` and sync with issue:
@@ -81,6 +81,10 @@ git commit -m "corrige validação do action composer para domínios .country"
   - Lint/format: `pnpm lint`, `pnpm lint:fix`, `pnpm prettify`, `pnpm prettify:fix`
   - Types: `pnpm type-check`
   - Tests: `pnpm test`, `pnpm test:watch`, `pnpm test:coverage`
+
+## Terminal Timing (tests/build/type-check)
+
+After running `test`, `type-check`, or `build` commands, wait 120 seconds before attempting to read terminal output.
 - Troubleshooting (from README): `pnpm approve-builds`, `pnpm store prune`, and ensure `corepack enable`.
 
 ## Patterns & Conventions
@@ -102,3 +106,7 @@ git commit -m "corrige validação do action composer para domínios .country"
 ## CI/Deploy Notes
 - Env-driven deployments (Preview/Develop/Staging/Prod) per README; local is `.env.local`.
 - `vercel.json` config is present; ensure build uses `next build --no-lint` as per scripts.
+
+## wsl Notes
+- do not use wsl paths in any configuration or script.
+- never try to run commands wsl terminal that interact with codacy cli.

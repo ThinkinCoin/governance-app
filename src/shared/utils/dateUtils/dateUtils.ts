@@ -66,8 +66,30 @@ class DateUtils {
             return true;
         }
 
-        const valueObject = typeof value === 'number' ? { seconds: value } : value;
-        const isValid = Duration.fromObject(valueObject) >= Duration.fromObject(minDuration);
+        const normalizeValue = (input?: number | string) => {
+            if (input == null) {
+                return 0;
+            }
+
+            const numericValue =
+                typeof input === 'string' ? Number(input.replace(/[^\d.-]/g, '')) : input;
+            return Number.isFinite(numericValue) ? numericValue : 0;
+        };
+
+        const valueObject =
+            typeof value === 'number'
+                ? { seconds: value }
+                : typeof value === 'string'
+                  ? { seconds: normalizeValue(value) }
+                  : {
+                        days: normalizeValue(value.days),
+                        hours: normalizeValue(value.hours),
+                        minutes: normalizeValue(value.minutes),
+                        seconds: normalizeValue((value as { seconds?: number | string }).seconds),
+                    };
+        const valueMs = Duration.fromObject(valueObject).as('milliseconds');
+        const minMs = Duration.fromObject(minDuration).as('milliseconds');
+        const isValid = valueMs >= minMs;
 
         return isValid;
     };
@@ -82,8 +104,12 @@ class DateUtils {
         }
 
         const parsedValue = this.parseFixedDate(value);
-        const isMinTimeValid = parsedValue >= minTime;
-        const isMinDurationValid = minDuration == null || parsedValue >= minTime.plus(minDuration);
+        const parsedMs = parsedValue.toMillis();
+        const minTimeMs = minTime.toMillis();
+        const minDurationMs = minDuration == null ? undefined : minTime.plus(minDuration).toMillis();
+
+        const isMinTimeValid = parsedMs >= minTimeMs;
+        const isMinDurationValid = minDurationMs == null || parsedMs >= minDurationMs;
 
         return isMinTimeValid && isMinDurationValid;
     };

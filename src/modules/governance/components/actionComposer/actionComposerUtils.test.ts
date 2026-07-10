@@ -242,8 +242,17 @@ describe('actionComposerUtils', () => {
                 excludeActionTypes,
             });
 
-            expect(result.find((item) => item.defaultValue?.type === ProposalActionType.TRANSFER)).toBeUndefined();
-            expect(result.find((item) => item.defaultValue?.type === ActionItemId.RAW_CALLDATA)).toBeUndefined();
+            const hasActionType = (defaultValue: unknown): defaultValue is { type: unknown } =>
+                defaultValue != null && !Array.isArray(defaultValue) && typeof defaultValue === 'object' && 'type' in defaultValue;
+
+            expect(
+                result.find(
+                    (item) => hasActionType(item.defaultValue) && item.defaultValue.type === ProposalActionType.TRANSFER,
+                ),
+            ).toBeUndefined();
+            expect(
+                result.find((item) => hasActionType(item.defaultValue) && item.defaultValue.type === ActionItemId.RAW_CALLDATA),
+            ).toBeUndefined();
         });
     });
 });

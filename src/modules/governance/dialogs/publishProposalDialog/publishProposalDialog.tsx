@@ -16,10 +16,10 @@ import { daoUtils } from '@/shared/utils/daoUtils';
 import { networkDefinitions } from '@/shared/constants/networkDefinitions';
 import { permissionManagerAbi } from '@/shared/utils/permissionTransactionUtils/abi/permissionManagerAbi';
 import { permissionTransactionUtils } from '@/shared/utils/permissionTransactionUtils';
-import { invariant, ProposalDataListItem, ProposalStatus } from '@aragon/gov-ui-kit';
+import { AlertInline, invariant, ProposalDataListItem, ProposalStatus } from '@aragon/gov-ui-kit';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAccount } from 'wagmi';
-import { useReadContract, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
+import { useBalance, useReadContract, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
 import type { IProposalCreateAction, IPublishProposalDialogProps } from './publishProposalDialog.api';
 import { publishProposalDialogUtils } from './publishProposalDialogUtils';
 import { decodeFunctionData, encodeFunctionData, keccak256, toBytes, type Hex, zeroHash } from 'viem';
@@ -45,6 +45,29 @@ export const PublishProposalDialog: React.FC<IPublishProposalDialogProps> = (pro
     const { setIsBlocked } = useBlockNavigationContext();
 
     const { data: dao } = useDao({ urlParams: { id: daoId } });
+
+    const isHarmonyNetwork = dao?.network === Network.HARMONY_MAINNET || dao?.network === Network.HARMONY_TESTNET;
+    const isHarmonyVotingPlugin =
+        plugin.interfaceType === PluginInterfaceType.HARMONY_HIP_VOTING ||
+        plugin.interfaceType === PluginInterfaceType.HARMONY_DELEGATION_VOTING;
+
+    const harmonyChainId = useMemo(() => {
+        if (dao?.network == null) return undefined;
+        return networkDefinitions[dao.network as Network]?.id;
+    }, [dao?.network]);
+
+    const minProposerBalanceWei = BigInt('1000000000000000000');
+    const { data: proposerBalance, isLoading: isBalanceLoading } = useBalance({
+        address,
+        chainId: harmonyChainId,
+        query: { enabled: isHarmonyNetwork && isHarmonyVotingPlugin && harmonyChainId != null },
+    });
+
+    const hasEnoughProposerBalance = useMemo(() => {
+        if (!isHarmonyNetwork || !isHarmonyVotingPlugin) return true;
+        const bal = proposerBalance?.value;
+        return bal != null && bal >= minProposerBalanceWei;
+    }, [isHarmonyNetwork, isHarmonyVotingPlugin, proposerBalance?.value]);
 
     const stepper = useStepper<ITransactionDialogStepMeta, PublishProposalStep | TransactionDialogStep>({
         initialActiveStep: PublishProposalStep.PIN_METADATA,
@@ -245,6 +268,18 @@ export const PublishProposalDialog: React.FC<IPublishProposalDialogProps> = (pro
         invariant(pinJsonData != null, 'PublishProposalDialog: metadata not pinned for prepare transaction step.');
         const { IpfsHash: metadataCid } = pinJsonData;
 
+        // HarmonyVoting requires the proposer wallet to have at least 1 ONE.
+        // Failing this would revert on-chain, so we block early with a clear error.
+        if (isHarmonyNetwork && isHarmonyVotingPlugin) {
+            if (isBalanceLoading) {
+                throw new Error('Loading wallet balance. Please wait a moment and try again.');
+            }
+
+            if (!hasEnoughProposerBalance) {
+                throw new Error('You need at least 1 ONE in your wallet to create a Harmony voting proposal.');
+            }
+        }
+
         const { actions } = proposal;
 
         const processedActions = await publishProposalDialogUtils.prepareActions({ actions, prepareActions });
@@ -350,6 +385,12 @@ export const PublishProposalDialog: React.FC<IPublishProposalDialogProps> = (pro
             indexingFallbackUrl={daoUtils.getDaoUrl(dao, 'proposals')}
             transactionInfo={transactionInfo}
         >
+            {isHarmonyNetwork && isHarmonyVotingPlugin && !hasEnoughProposerBalance && (
+                <AlertInline
+                    variant="critical"
+                    message="You need at least 1 ONE in your wallet to create a Harmony voting proposal."
+                />
+            )}
             {plugin.interfaceType !== PluginInterfaceType.ADMIN && (
                 <ProposalDataListItem.Structure
                     title={title}

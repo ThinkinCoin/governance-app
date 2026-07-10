@@ -64,9 +64,11 @@ export const useFormField = <TFieldValues extends FieldValues = never, TName ext
         const alertMessageParams = { name: label ?? name, value: alertValue };
 
         const alertMessage =
-            error.message != null && error.message.length > 0
-                ? t(error.message, alertValueProp)
-                : t(alertMessageKey, alertMessageParams);
+                        error.message != null && error.message.length > 0
+                                ? // If a custom alert value object was provided use it, otherwise fall back to the
+                                    // default params so translation placeholders like {{value}} are interpolated.
+                                    t(error.message, alertValueProp ?? alertMessageParams)
+                                : t(alertMessageKey, alertMessageParams);
 
         return { message: alertMessage, variant: 'critical' as const };
     }, [error, rules, label, alertValueProp, t, name]);

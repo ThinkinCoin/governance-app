@@ -11,34 +11,43 @@ export const useWhitelistValidation = (params: IWhitelistValidationParams): IWhi
     const { data } = useWhitelistedAddresses();
     const { values } = useDebugContext<{ enableAllPlugins: boolean }>();
 
-    if (values.enableAllPlugins || data == null) {
-        return { enabledPlugins: plugins, disabledPlugins: [] };
-    }
-
-    if (!address) {
-        return { enabledPlugins: [], disabledPlugins: plugins };
-    }
-
     const enabledPlugins: typeof plugins = [];
     const disabledPlugins: typeof plugins = [];
 
+    const isDebug = !!values.enableAllPlugins;
+
     for (const plugin of plugins) {
-        // If plugin requires allowlist, always disable it (manual authorization required)
-        if (plugin.requiresAllowlist) {
+        if (isDebug) {
+            enabledPlugins.push(plugin);
+            continue;
+        }
+
+        const requiresAllowlist = !!plugin.requiresAllowlist;
+
+        if (!address) {
             disabledPlugins.push(plugin);
             continue;
         }
 
-        const list = data[plugin.id];
+        if (requiresAllowlist) {
+            if (data == null) {
+                disabledPlugins.push(plugin);
+                continue;
+            }
 
-        const approved =
-            !list || list.some((whitelistAddress) => addressUtils.isAddressEqual(whitelistAddress, address));
+            const list = data[plugin.id] ?? [];
+            const approved = list.some((whitelistAddress) => addressUtils.isAddressEqual(whitelistAddress, address));
 
-        if (approved) {
-            enabledPlugins.push(plugin);
-        } else {
-            disabledPlugins.push(plugin);
+            if (approved) {
+                enabledPlugins.push(plugin);
+            } else {
+                disabledPlugins.push(plugin);
+            }
+
+            continue;
         }
+
+        enabledPlugins.push(plugin);
     }
 
     return { enabledPlugins, disabledPlugins };

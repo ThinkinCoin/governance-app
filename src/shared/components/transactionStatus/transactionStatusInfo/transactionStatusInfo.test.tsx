@@ -34,6 +34,16 @@ describe('<TransactionStatusInfo /> component', () => {
         expect(screen.getByText(/transactionStatus\.info\.total \(total=3\)/)).toBeInTheDocument();
     });
 
+    it('renders details when provided', () => {
+        const title = 'Details Title';
+        const details = 'Estimated gas: 12345';
+
+        render(createTestComponent({ title, details }));
+
+        expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
+        expect(screen.getByText(details)).toBeInTheDocument();
+    });
+
     it('throws an error if current is provided without total', () => {
         testLogger.suppressErrors();
         const current = 1;

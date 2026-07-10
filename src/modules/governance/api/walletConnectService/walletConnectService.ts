@@ -105,7 +105,7 @@ export class WalletConnectService {
         const namespaces = buildApprovedNamespaces({ proposal: sessionProposal.params, supportedNamespaces });
         const session = await this.client!.approveSession({ id: sessionProposal.id, namespaces });
 
-        return session;
+        return session as unknown as ISession;
     };
 
     private getSupportedNamespaces = (account: string) => {

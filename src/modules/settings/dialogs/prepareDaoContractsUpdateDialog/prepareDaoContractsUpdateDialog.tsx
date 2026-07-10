@@ -8,11 +8,14 @@ import {
     type ITransactionDialogStepMeta,
 } from '@/shared/components/transactionDialog';
 import { useTranslations } from '@/shared/components/translationsProvider';
+import { networkDefinitions } from '@/shared/constants/networkDefinitions';
+import { useDaoChain } from '@/shared/hooks/useDaoChain';
 import { useStepper } from '@/shared/hooks/useStepper';
 import { daoUtils } from '@/shared/utils/daoUtils';
 import { invariant } from '@aragon/gov-ui-kit';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { TransactionReceipt } from 'viem';
+import { useAccount, usePublicClient } from 'wagmi';
 import { prepareDaoContractsUpdateDialogUtils } from './prepareDaoContractsUpdateDialogUtils';
 
 export interface IPrepareDaoContractsUpdateDialogParams {
@@ -44,11 +47,42 @@ export const PrepareDaoContractsUpdateDialog: React.FC<IPrepareDaoContractsUpdat
 
     invariant(dao != null, 'PrepareDaoContractsUpdateDialog: DAO must be defined.');
 
+    const { address, chainId } = useAccount();
+    const { chainId: requiredChainId } = useDaoChain({ network: dao.network });
+    const publicClient = usePublicClient({ chainId: requiredChainId });
+
+    const [gasEstimate, setGasEstimate] = useState<bigint | undefined>();
+
     const initialActiveStep = hasPluginsUpdate ? TransactionDialogStep.PREPARE : undefined;
     const stepper = useStepper<ITransactionDialogStepMeta>({ initialActiveStep });
 
-    const handlePrepareTransaction = () =>
-        prepareDaoContractsUpdateDialogUtils.buildPrepareUpdatePluginsTransaction({ dao, plugins: pluginsUpdate });
+    const handlePrepareTransaction = async () => {
+        if (chainId != null && requiredChainId != null && chainId !== requiredChainId) {
+            const requiredNetworkName = networkDefinitions[dao.network]?.name ?? 'the correct network';
+            throw new Error(`Please switch your wallet to ${requiredNetworkName} before preparing the installation.`);
+        }
+
+        const transaction = await prepareDaoContractsUpdateDialogUtils.buildPrepareUpdatePluginsTransaction({
+            dao,
+            plugins: pluginsUpdate,
+        });
+
+        if (publicClient != null && address != null) {
+            try {
+                const estimatedGas = await publicClient.estimateGas({
+                    account: address,
+                    to: transaction.to,
+                    data: transaction.data,
+                    value: transaction.value,
+                });
+                setGasEstimate(estimatedGas);
+            } catch {
+                setGasEstimate(undefined);
+            }
+        }
+
+        return transaction;
+    };
 
     const handlePublishUpdateProposal = useCallback(
         (prepareUpdateReceipt?: TransactionReceipt) => {
@@ -79,7 +113,15 @@ export const PrepareDaoContractsUpdateDialog: React.FC<IPrepareDaoContractsUpdat
         }
     }, [hasPluginsUpdate, handlePublishUpdateProposal]);
 
-    const transactionInfoTitle = t('app.settings.prepareDaoContractsUpdateDialog.transactionInfoTitle');
+    const transactionInfo = useMemo(
+        () => ({
+            title: t('app.settings.prepareDaoContractsUpdateDialog.transactionInfoTitle'),
+            current: 1,
+            total: 2,
+            details: gasEstimate ? `Estimated gas: ${gasEstimate.toString()}` : undefined,
+        }),
+        [t, gasEstimate],
+    );
 
     return (
         <TransactionDialog
@@ -87,7 +129,7 @@ export const PrepareDaoContractsUpdateDialog: React.FC<IPrepareDaoContractsUpdat
             description={t('app.settings.prepareDaoContractsUpdateDialog.description')}
             submitLabel={t('app.settings.prepareDaoContractsUpdateDialog.button.submit')}
             onSuccess={handlePublishUpdateProposal}
-            transactionInfo={{ title: transactionInfoTitle, current: 1, total: 2 }}
+            transactionInfo={transactionInfo}
             stepper={stepper}
             prepareTransaction={handlePrepareTransaction}
             network={dao.network}

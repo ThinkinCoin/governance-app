@@ -13,6 +13,7 @@ export interface IBuildTransactionDialogSuccessLinkHref {
      */
     receipt: TransactionReceipt;
     /**
+    details?: string;
      * Slug of the proposal only passed if the transaction type is creating a proposal.
      */
     slug?: string;

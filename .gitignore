@@ -45,4 +45,6 @@ next-env.d.ts
 .idea
 .claude
 .gitissuer
-.env*
+.gitissuer/state.json
+tmp
+docs/plans/archive

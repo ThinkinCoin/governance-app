@@ -8,12 +8,14 @@ import {
     TransactionDialogStep,
 } from '@/shared/components/transactionDialog';
 import { useTranslations } from '@/shared/components/translationsProvider';
+import { networkDefinitions } from '@/shared/constants/networkDefinitions';
+import { useDaoChain } from '@/shared/hooks/useDaoChain';
 import { useStepper } from '@/shared/hooks/useStepper';
 import { type IPluginUninstallSetupData, pluginTransactionUtils } from '@/shared/utils/pluginTransactionUtils';
 import { invariant } from '@aragon/gov-ui-kit';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TransactionReceipt } from 'viem';
-import { useAccount } from 'wagmi';
+import { useAccount, usePublicClient } from 'wagmi';
 import type { IUninstallPluginAlertDialogParams } from '../uninstallPluginAlertDialog';
 import { preparePluginUninstallationDialogUtils } from './preparePluginUninstallationDialogUtils';
 
@@ -33,7 +35,7 @@ export const PreparePluginUninstallationDialog: React.FC<IPreparePluginUninstall
     invariant(location.params != null, 'PreparePluginUninstallationDialog: required parameters must be set.');
     const { daoId, uninstallPlugin, proposalPlugin, uninstallationPreparedEventLog } = location.params;
 
-    const { address } = useAccount();
+    const { address, chainId } = useAccount();
     invariant(address != null, 'PreparePluginUninstallationDialog: user must be connected.');
 
     const { t } = useTranslations();
@@ -42,19 +44,53 @@ export const PreparePluginUninstallationDialog: React.FC<IPreparePluginUninstall
 
     const { data: dao } = useDao({ urlParams: { id: daoId } });
 
+    const { chainId: requiredChainId } = useDaoChain({ network: dao?.network });
+    const publicClient = usePublicClient({ chainId: requiredChainId });
+
+    const [gasEstimate, setGasEstimate] = useState<bigint | undefined>();
+
     const initialStep = TransactionDialogStep.PREPARE;
     const stepper = useStepper<ITransactionDialogStepMeta, TransactionDialogStep>({ initialActiveStep: initialStep });
 
     const handlePrepareTransaction = async () => {
         invariant(dao != null, 'PreparePluginUninstallationDialog: DAO not found.');
 
+        if (chainId != null && requiredChainId != null && chainId !== requiredChainId) {
+            const requiredNetworkName = networkDefinitions[dao.network]?.name ?? 'the correct network';
+            throw new Error(`Please switch your wallet to ${requiredNetworkName} before preparing the installation.`);
+        }
+
         const transaction = await preparePluginUninstallationDialogUtils.buildPrepareUninstallationTransaction(
             dao,
             uninstallPlugin,
         );
 
+        if (publicClient != null && address != null) {
+            try {
+                const estimatedGas = await publicClient.estimateGas({
+                    account: address,
+                    to: transaction.to,
+                    data: transaction.data,
+                    value: transaction.value,
+                });
+                setGasEstimate(estimatedGas);
+            } catch {
+                setGasEstimate(undefined);
+            }
+        }
+
         return transaction;
     };
+
+    const transactionInfo = useMemo(
+        () => ({
+            title: t('app.settings.preparePluginUninstallationDialog.transactionInfoTitle'),
+            current: 1,
+            total: 2,
+            details: gasEstimate ? `Estimated gas: ${gasEstimate.toString()}` : undefined,
+        }),
+        [t, gasEstimate],
+    );
 
     const handlePrepareUninstallationSuccess = (txReceipt: TransactionReceipt) => {
         const setupData = pluginTransactionUtils.getPluginUninstallSetupData(txReceipt);
@@ -129,11 +165,7 @@ export const PreparePluginUninstallationDialog: React.FC<IPreparePluginUninstall
             description={t('app.settings.preparePluginUninstallationDialog.description')}
             submitLabel={t('app.settings.preparePluginUninstallationDialog.button.submit')}
             onSuccess={handlePrepareUninstallationSuccess}
-            transactionInfo={{
-                title: t('app.settings.preparePluginUninstallationDialog.transactionInfoTitle'),
-                current: 1,
-                total: 2,
-            }}
+            transactionInfo={transactionInfo}
             stepper={stepper}
             prepareTransaction={handlePrepareTransaction}
             network={dao?.network}

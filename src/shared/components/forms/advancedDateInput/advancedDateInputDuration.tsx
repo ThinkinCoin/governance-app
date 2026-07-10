@@ -3,7 +3,7 @@ import { dateUtils, type IDateDuration } from '@/shared/utils/dateUtils';
 import { Card, InputNumber } from '@aragon/gov-ui-kit';
 import classNames from 'classnames';
 import { Duration } from 'luxon';
-import type { ComponentProps } from 'react';
+import React, { type ComponentProps } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useTranslations } from '../../translationsProvider';
 import type { IAdvancedDateInputBaseProps } from './advancedDateInput.api';
@@ -36,7 +36,7 @@ export const AdvancedDateInputDuration: React.FC<IAdvancedDateInputDurationProps
         ...otherProps
     } = props;
     const { t } = useTranslations();
-    const { setValue, trigger } = useFormContext();
+    const { setValue, trigger, getValues } = useFormContext();
 
     const validateDuration = (value: IDateDuration | number) => {
         const isValid = dateUtils.validateDuration({ value, minDuration });
@@ -65,12 +65,28 @@ export const AdvancedDateInputDuration: React.FC<IAdvancedDateInputDurationProps
             ? durationField.value
             : dateUtils.secondsToDuration(durationField.value);
 
+    // Use a ref to track latest duration without depending on stale getValues() during rapid updates.
+    const latestDurationRef = React.useRef<IDateDuration>(currentDurationObject);
+    React.useEffect(() => {
+        latestDurationRef.current = currentDurationObject;
+    }, [currentDurationObject]);
+
     const handleDurationChange = (type: string) => (value: string) => {
-        const parsedValue = parseInt(value, 10);
-        const numericValue = isNaN(parsedValue) ? 0 : parsedValue;
-        const newValue = { ...currentDurationObject, [type]: numericValue };
+        // InputNumber values may be formatted (e.g. include suffixes). Extract digits to avoid parsing issues.
+        const digitsOnly = value.replace(/[^\d]/g, '');
+        const parsedValue = digitsOnly.length > 0 ? Number(digitsOnly) : 0;
+        const numericValue = Number.isNaN(parsedValue) ? 0 : parsedValue;
+        const newValue = { ...latestDurationRef.current, [type]: numericValue };
+        // Update ref immediately to avoid stale reads on subsequent rapid changes.
+        latestDurationRef.current = newValue;
         const processedNewValue = useSecondsFormat ? dateUtils.durationToSeconds(newValue) : newValue;
-        setValue(field, processedNewValue, { shouldValidate: false });
+        setValue(field, processedNewValue, { shouldValidate: validateMinDuration === true });
+
+        // Some RHF configurations may not reliably re-run validation for nested object updates
+        // when using `setValue` alone; explicitly triggering keeps the alert state in sync.
+        if (validateMinDuration === true) {
+            void trigger(field);
+        }
     };
 
     const handleInputBlur = () => trigger(field);

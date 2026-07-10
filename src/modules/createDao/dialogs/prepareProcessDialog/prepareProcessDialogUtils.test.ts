@@ -1,9 +1,10 @@
 import { sppTransactionUtils } from '@/plugins/sppPlugin/utils/sppTransactionUtils';
-import { Network } from '@/shared/api/daoService';
+import { Network, PluginInterfaceType } from '@/shared/api/daoService';
 import { generateDao, generatePluginInstallationSetupData } from '@/shared/testUtils';
 import { pluginRegistryUtils } from '@/shared/utils/pluginRegistryUtils';
 import { pluginTransactionUtils } from '@/shared/utils/pluginTransactionUtils';
 import { type ITransactionRequest, transactionUtils } from '@/shared/utils/transactionUtils';
+import { evmAddressUtils } from '@/shared/utils/evmAddressUtils';
 import { type Hex } from 'viem';
 import {
     generateCreateProcessFormData,
@@ -107,6 +108,16 @@ describe('prepareProcessDialog utils', () => {
             buildDeployExecuteSelectorConditionDataSpy.mockRestore();
         });
 
+        const validatorAddressSpy = jest.spyOn(evmAddressUtils, 'validate');
+
+        afterEach(() => {
+            validatorAddressSpy.mockReset();
+        });
+
+        afterAll(() => {
+            validatorAddressSpy.mockRestore();
+        });
+
         it('builds the prepare install action of the processor when processor metadata is set', async () => {
             const values = generateCreateProcessFormData();
             const dao = generateDao({ network: Network.ARBITRUM_MAINNET });
@@ -150,6 +161,35 @@ describe('prepareProcessDialog utils', () => {
                 pluginsMetadata: processMetadata.plugins,
             });
             expect(result).toEqual(encodedTransaction);
+        });
+
+        it('throws when validator address is missing for delegation voting', async () => {
+            const dao = generateDao();
+            const delegationBody = generateSetupBodyFormNew({
+                plugin: PluginInterfaceType.HARMONY_DELEGATION_VOTING,
+                membership: { members: [], validatorAddress: '' },
+            });
+            const values = generateCreateProcessFormDataBasic({ body: delegationBody });
+            const processMetadata = { plugins: [], proposal: '' };
+
+            await expect(
+                prepareProcessDialogUtils.buildPrepareProcessTransaction({ values, dao, processMetadata }),
+            ).rejects.toThrow('Validator address is required for Harmony Delegation voting.');
+        });
+
+        it('throws when validator address is invalid for delegation voting', async () => {
+            validatorAddressSpy.mockReturnValue({ ok: false, error: 'format' });
+            const dao = generateDao();
+            const delegationBody = generateSetupBodyFormNew({
+                plugin: PluginInterfaceType.HARMONY_DELEGATION_VOTING,
+                membership: { members: [], validatorAddress: '0xinvalid' },
+            });
+            const values = generateCreateProcessFormDataBasic({ body: delegationBody });
+            const processMetadata = { plugins: [], proposal: '' };
+
+            await expect(
+                prepareProcessDialogUtils.buildPrepareProcessTransaction({ values, dao, processMetadata }),
+            ).rejects.toThrow('Validator address must be a valid address.');
         });
     });
 
