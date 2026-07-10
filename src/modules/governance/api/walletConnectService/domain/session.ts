@@ -1,4 +1,4 @@
-import type { SessionTypes } from '@walletconnect/types';
+import type { WalletKit } from '@reown/walletkit';
 
-// Object containining information on connection sessions
-export type ISession = SessionTypes.Struct;
+// Object containing information on connection sessions.
+export type ISession = Awaited<ReturnType<InstanceType<typeof WalletKit>['approveSession']>>;

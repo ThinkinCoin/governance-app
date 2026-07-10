@@ -1,4 +1,4 @@
-import type { SignClientTypes } from '@walletconnect/types';
+import type { WalletKitTypes } from '@reown/walletkit';
 
 // Metadata of connected dApps
-export type IAppMetadata = SignClientTypes.Metadata;
+export type IAppMetadata = WalletKitTypes.Metadata;
