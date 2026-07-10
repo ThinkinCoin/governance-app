@@ -1,10 +1,4 @@
+import type { WalletKit } from '@reown/walletkit';
+
 // Object containing information on connection sessions.
-// Note: keep this type structural to avoid TypeScript conflicts when multiple @walletconnect/types
-// versions are present in the dependency graph.
-export type ISession = {
-	topic: string;
-	peer: {
-		metadata: unknown;
-	};
-	[key: string]: unknown;
-};
+export type ISession = Awaited<ReturnType<InstanceType<typeof WalletKit>['approveSession']>>;

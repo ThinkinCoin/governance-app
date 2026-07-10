@@ -1,6 +1,5 @@
 import { walletConnectDefinitions } from '@/shared/constants/walletConnectDefinitions';
 import { WalletKit } from '@reown/walletkit';
-import type { SessionTypes } from '@walletconnect/types';
 import * as WalletConnectUtils from '@walletconnect/utils';
 import { getSdkError } from '@walletconnect/utils';
 import type { ISession, ISessionEventArguments, ISessionProposal } from './domain';
@@ -153,7 +152,9 @@ describe('walletConnect service', () => {
             const address = '0x123';
             const sessionProposal = { params: [], id: '0' } as unknown as ISessionProposal;
             const supportedNamespaces = { eip155: {} };
-            buildApprovedNamespacesSpy.mockReturnValue(supportedNamespaces as unknown as SessionTypes.Namespaces);
+            buildApprovedNamespacesSpy.mockReturnValue(
+                supportedNamespaces as unknown as ReturnType<typeof WalletConnectUtils.buildApprovedNamespaces>,
+            );
 
             const testService = await createTestService();
             testService['getSupportedNamespaces'] = jest.fn(
