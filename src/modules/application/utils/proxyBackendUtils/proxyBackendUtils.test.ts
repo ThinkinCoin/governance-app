@@ -10,7 +10,6 @@ import { ProxyBackendUtils, proxyBackendUtils } from './proxyBackendUtils';
 describe('proxyBackend utils', () => {
     const originalEnv = process.env;
     const fetchSpy = jest.spyOn(global, 'fetch');
-    const nextResponseJsonSpy = jest.spyOn(NextResponse, 'json');
 
     beforeEach(() => {
         fetchSpy.mockResolvedValue(generateResponse());
@@ -18,32 +17,27 @@ describe('proxyBackend utils', () => {
 
     afterEach(() => {
         fetchSpy.mockReset();
-        nextResponseJsonSpy.mockReset();
         process.env = originalEnv;
     });
 
     describe('request', () => {
-        it('calls the backend, parses JSON when content-type is application/json, and returns it', async () => {
-            const parsedResponse = { result: 'test' };
-            const headers = new Headers({ 'content-type': 'application/json' });
+        it('forwards the response stream without stale encoding headers', async () => {
+            const body = new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode('{"result":"test"}')); controller.close(); } });
+            const headers = new Headers({ 'content-type': 'application/json', 'content-encoding': 'gzip', 'content-length': '20' });
             const fetchReturn = generateResponse({
                 status: 200,
                 headers,
-                json: jest.fn(() => Promise.resolve(parsedResponse)),
+                body,
             });
-            const mockNextResponse = {} as NextResponse;
             fetchSpy.mockResolvedValue(fetchReturn);
-            nextResponseJsonSpy.mockReturnValue(mockNextResponse);
 
             const result = await proxyBackendUtils.request(generateNextRequest({ url: 'http://test.com' }));
 
             expect(fetchSpy).toHaveBeenCalled();
-            expect(fetchReturn.json).toHaveBeenCalled();
-            expect(nextResponseJsonSpy).toHaveBeenCalledWith(parsedResponse, {
-                status: fetchReturn.status,
-                headers: fetchReturn.headers,
-            });
-            expect(result).toEqual(mockNextResponse);
+            expect(result.headers.get('content-encoding')).toBeNull();
+            expect(result.headers.get('content-length')).toBeNull();
+            expect(result.headers.get('content-type')).toBe('application/json');
+            expect((fetchSpy.mock.calls[0][1] as RequestInit).headers).toEqual(expect.objectContaining({ 'accept-encoding': 'identity' }));
         });
 
         it('forwards 204 responses without a body', async () => {

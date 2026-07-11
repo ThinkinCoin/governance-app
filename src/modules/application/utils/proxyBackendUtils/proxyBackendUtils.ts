@@ -1,4 +1,4 @@
-import { responseUtils } from '@/shared/utils/responseUtils';
+import { sanitizeProxyHeaders, sanitizeProxyRequestHeaders } from '@/shared/utils/proxyResponseUtils/proxyResponseUtils';
 import { type NextRequest, NextResponse } from 'next/server';
 
 export class ProxyBackendUtils {
@@ -14,34 +14,16 @@ export class ProxyBackendUtils {
             return this.forwardNoContent(result);
         }
 
-        const contentType = result.headers.get('content-type') ?? '';
-
-        if (this.isJson(contentType)) {
-            return this.forwardJson(result);
-        }
-
-        return this.forwardText(result);
+        return this.forwardBody(result);
     };
 
     private isNoContent = (status: number): boolean => status === 204 || status === 205 || status === 304;
 
     private forwardNoContent = (result: Response): NextResponse =>
-        new NextResponse(null, { status: result.status, headers: result.headers });
+        new NextResponse(null, { status: result.status, headers: sanitizeProxyHeaders(result.headers) });
 
-    private isJson = (contentType: string): boolean => contentType.includes('application/json');
-
-    private forwardJson = async (result: Response): Promise<NextResponse> => {
-        const parsedResult = await responseUtils.safeJsonParseForResponse(result);
-        if (parsedResult == null) {
-            return new NextResponse(null, { status: result.status, headers: result.headers });
-        }
-        return NextResponse.json(parsedResult, { status: result.status, headers: result.headers });
-    };
-
-    private forwardText = async (result: Response): Promise<NextResponse> => {
-        const bodyText = await result.text().catch(() => '');
-        return new NextResponse(bodyText, { status: result.status, headers: result.headers });
-    };
+    private forwardBody = (result: Response): NextResponse =>
+        new NextResponse(result.body, { status: result.status, headers: sanitizeProxyHeaders(result.headers) });
 
     private buildBackendUrl = (request: NextRequest): string => {
         const [, relativeUrlRaw] = request.nextUrl.href.split(this.proxyUrl);
@@ -84,7 +66,7 @@ export class ProxyBackendUtils {
         const { method, headers } = request;
         const body = method.toUpperCase() === 'POST' ? await request.text() : undefined;
 
-        const processedHeaders = new Headers(headers);
+        const processedHeaders = sanitizeProxyRequestHeaders(new Headers(headers));
 
         if (process.env.NEXT_SECRET_ARAGON_BACKEND_API_KEY) {
             processedHeaders.set('X-API-Key', process.env.NEXT_SECRET_ARAGON_BACKEND_API_KEY);

@@ -50,7 +50,18 @@ export class AragonBackendService extends HttpService {
         _allPages: Array<IPaginatedResponse<TData>>,
         previousParams: TParams,
     ): TParams | undefined => {
-        const { page, totalPages } = lastPage.metadata;
+        const metadata = lastPage?.metadata;
+        if (
+            metadata == null ||
+            typeof metadata.page !== 'number' ||
+            typeof metadata.totalPages !== 'number' ||
+            metadata.page < 1 ||
+            metadata.totalPages < 1
+        ) {
+            return undefined;
+        }
+
+        const { page, totalPages } = metadata;
 
         if (page >= totalPages) {
             return undefined;
