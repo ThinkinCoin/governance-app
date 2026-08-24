@@ -7,7 +7,7 @@
   "private": true,
   "license": "GPL-3.0",
   "scripts": {
-    "dev": "pnpm run setup local && next dev --turbopack",
+    "dev": "next dev --webpack",
     "setup": "bash scripts/setupEnv.sh",
     "setup:development": "cross-env pnpm run setup development",
     "setup:preview": "cross-env pnpm run setup preview",

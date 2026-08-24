@@ -162,11 +162,8 @@ const nextConfig = {
     experimental: {
         // Enable Sentry page-load tracing metadata for App Router
         clientTraceMetadata: ['sentry-trace', 'baggage'],
-        // Explicitly unset instrumentationHook to silence Next.js warnings
-        instrumentationHook: undefined,
-        // Use new key for external server packages (replaces serverComponentsExternalPackages)
-        serverExternalPackages: [],
     },
+    serverExternalPackages: [],
     env: {
         version: packageInfo.version,
     },

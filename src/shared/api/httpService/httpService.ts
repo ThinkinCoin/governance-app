@@ -31,6 +31,9 @@ export class HttpService {
         }
 
         const result = await responseUtils.safeJsonParse(response);
+        if (result == null) {
+            throw new Error(`Resposta vazia ou inválida do backend: ${completeUrl}`);
+        }
         return result as TData;
     };
 

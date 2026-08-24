@@ -48,3 +48,4 @@ next-env.d.ts
 .gitissuer/state.json
 tmp
 docs/plans/archive
+.env*
